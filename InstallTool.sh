@@ -8,6 +8,7 @@ apt-get install update -y
 apt install iperf -y
 apt install fio -y
 apt install ipmitool -y
+apt install ethtool -y
 
 echo "已安裝好測試Tool"
 
