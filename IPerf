@@ -1,3 +1,74 @@
-#!/bin/bash  
+#!/bin/bash
 
-echo "請選擇要測試的網路孔名稱"
+# 预设定的IP地址和子网掩码
+ip1="192.168.0.1"
+subnet_mask1="255.255.255.0"
+ip2="192.168.0.2"
+subnet_mask2="255.255.255.0"
+
+# 检查是否已安装 iperf
+if ! command -v iperf &> /dev/null
+then
+    echo "iperf 未安装，正在安装..."
+    # 更新软件包列表
+    sudo apt update
+    # 安装 iperf
+    sudo apt install -y iperf
+else
+    echo "系统已检测安装 iperf 成功."
+    # 延迟 2 秒
+    sleep 2
+fi
+
+# 顯示網路介面資訊
+echo "机器上的网络接口信息："
+interfaces=$(ls /sys/class/net/)
+for interface in $interfaces
+do
+    speed_info=$(ethtool $interface 2>/dev/null | grep "Speed" | awk '{print $2, $3, "("$4")"}')
+    echo "$interface $speed_info"
+done
+
+# 让用户选择两个接口进行测试
+echo "请选择两个接口进行 IPERF 测试："
+select interface1 in $interfaces
+do
+    echo "选择的第一个接口为：$interface1"
+    if [ ! -z "$interface1" ]; then
+        break
+    else
+        echo "无效的选择，请重新选择。"
+    fi
+done
+
+select interface2 in $interfaces
+do
+    echo "选择的第二个接口为：$interface2"
+    if [ ! -z "$interface2" ] && [ "$interface2" != "$interface1" ]; then
+        break
+    else
+        echo "无效的选择，请重新选择。"
+    fi
+done
+
+# 获取用户输入的秒数和间隔
+read -p "请输入要运行的秒数： " duration
+read -p "请输入每隔多少秒显示一次消息： " interval
+
+# 自动配置IP地址和子网掩码
+echo "正在配置接口IP地址和子网掩码..."
+sudo ifconfig $interface1 $ip1 netmask $subnet_mask1
+sudo ifconfig $interface2 $ip2 netmask $subnet_mask2
+echo "接口 $interface1 的IP地址已成功配置为 $ip1，子网掩码为 $subnet_mask1。"
+echo "接口 $interface2 的IP地址已成功配置为 $ip2，子网掩码为 $subnet_mask2。"
+
+# 打开一个新终端并启动IPERF服务器
+echo "正在打开新终端并启动 IPERF 服务器..."
+gnome-terminal -- iperf -s
+
+# 延迟一段时间，确保IPERF服务器已经启动
+sleep 2
+
+# 执行 IPERF 测试
+echo "接口 $interface1 和接口 $interface2 将进行 IPERF 测试，持续 $duration 秒，每隔 $interval 秒显示一次消息。"
+iperf -c $ip2 -t $duration -i $interval
